@@ -52,15 +52,7 @@ contract Proposal {
     "requirements for Comet and prevented huge security breaches."
     "This is an update of an earlier unsubmitted proposal 2 discussed in November 2021.";
 
-    constructor() {
-        // TODO these vars should be initialized when running propose, not in constructor
-
-        // MAX_VOTING_PERIOD is designated in blocks so we multiple by 15
-        startTime = block.timestamp + Constants.MAX_VOTING_PERIOD * 15;
-        // 1 year from startTime
-        endTime = startTime + 60 * 60 * 24 * 365;
-        recipient = Constants.CERTORA;
-    }
+    constructor() {}
 
 
     function getProposalData() public view returns (bytes memory) {
@@ -95,6 +87,13 @@ contract Proposal {
     }
 
     function buildProposalData() public {
+
+        // MAX_VOTING_PERIOD is designated in blocks so we multiple by 15
+        startTime = block.timestamp + Constants.MAX_VOTING_PERIOD * 15;
+        // 1 year from startTime
+        endTime = startTime + 60 * 60 * 24 * 365;
+        recipient = Constants.CERTORA;
+
         amountComp = convertUSDAmountToCOMP(Constants.COMP_VALUE);
         // make the amount divisible by duration
         amountComp -= amountComp % (endTime - startTime);
