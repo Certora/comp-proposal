@@ -41,6 +41,8 @@ contract ContractTest is Test {
     }
 
     function _testSignatures() internal {
+        console.log("approve and createstream sigs: ", signatures[0], signatures[2]);
+        emit log_named_bytes("encoded approve", abi.encode(signatures[0]));
         assertEq(keccak256(abi.encode(signatures[0])), keccak256(abi.encode("approve(address,uint256)")));
         assertEq(keccak256(abi.encode(signatures[1])), keccak256(abi.encode("approve(address,uint256)")));
         assertEq(keccak256(abi.encode(signatures[2])), 
@@ -71,6 +73,7 @@ contract ContractTest is Test {
         uint256 endTime;
         (recipient, amount, token, startTime, endTime) = abi.decode(calldatas[2], 
                                                         (address, uint256, address, uint256, uint256));
+        console.log("got for calldata[2]: ", startTime, endTime);
 
         assertEq(recipient, Constants.CERTORA, "wrong recipient");
         assertEq(amount, proposal.amountComp(), "wrong comp amount");
@@ -147,17 +150,13 @@ contract ContractTest is Test {
         assertEq(usdcAmount, Constants.USDC_VALUE * 10 ** Constants.USDC_DECIMALS);
     }
 
-    function testE2E() public {
+    function testE2EContract() public {
 
         IDelegatable comp = IDelegatable(Constants.COMP_TOKEN);
         IGovernorBravo governor = IGovernorBravo(Constants.GOVERNOR_BRAVO);
         uint256 currentBlock = block.number;
 
         deal(msg.sender, 1e18);
-
-        // give enough tokens for a quorum to msg.sender 
-        // deal(Constants.COMP_TOKEN, msg.sender, Constants.quorumVotes + 1 );
-        // deal doesn't work because it doesn't take into account delegates checkpoints
         
         // polychain - 306k votes
         address whale1 = 0xea6C3Db2e7FCA00Ea9d7211a03e83f568Fc13BF7;
@@ -173,15 +172,83 @@ contract ContractTest is Test {
         uint96 votes = comp.getCurrentVotes(address(proposal));
         assertGt(votes, Constants.MIN_PROPOSAL_THRESHOLD);
 
-        console.log("current block: ", currentBlock, "votes: ", votes / 10e18);
+        vm.roll(currentBlock + 4 * 60 * 24 * 2);
+        vm.warp(block.timestamp + 2 days);
+        currentBlock = block.number;
+
+        // run propose()
+        uint256 proposalId = proposal.run();
+
+        // proposal _review period is two days in the docs. But it only works with three days.
+        vm.roll(currentBlock + 4 * 60 * 24 * 3 + 1);
+        vm.warp(block.timestamp + 3 days);
+        currentBlock = block.number;
+
+        // vote for proposal
+        vm.startPrank(whale1);
+        governor.castVote(proposalId, 1);
+        vm.stopPrank();
+
+        vm.startPrank(whale2);
+        governor.castVote(proposalId, 1);
+        vm.stopPrank();
+
+        // proposal voting period
+        vm.roll(currentBlock + 4 * 60 * 24 * 3);
+        vm.warp(block.timestamp + 3 days);
+        currentBlock = block.number;
+
+        // queue
+        governor.queue(proposalId);
+
+        // proposal queue time
+        vm.roll(currentBlock + 4 * 60 * 24 * 2 + 1);
+        vm.warp(block.timestamp + 2 days);
+        currentBlock = block.number;
+
+        // execute
+        governor.execute(proposalId);
+
+        // check the stream using sablier.nextStreamId()
+        uint256 compStreamId = ISablier(Constants.SABLIER).nextStreamId() - 2;
+        uint256 usdcStreamId = ISablier(Constants.SABLIER).nextStreamId() - 1;
+
+        _testCompStream(compStreamId);
+        _testUsdcStream(usdcStreamId);
+    }
+
+    function testE2EProposeCall() public {
+        IGovernorBravo governor = IGovernorBravo(Constants.GOVERNOR_BRAVO);
+        uint256 currentBlock = block.number;
+
+        deal(msg.sender, 1e18);
+
+        // give enough tokens for a quorum to msg.sender 
+        // deal(Constants.COMP_TOKEN, msg.sender, Constants.quorumVotes + 1 );
+        // deal doesn't work because it doesn't take into account delegates checkpoints
+        
+        // polychain - 306k votes
+        address whale1 = 0xea6C3Db2e7FCA00Ea9d7211a03e83f568Fc13BF7;
+        // a16z 256k votes
+        address whale2 = 0x9AA835Bc7b8cE13B9B0C9764A52FbF71AC62cCF1;
+
 
         vm.roll(currentBlock + 4 * 60 * 24 * 2);
         vm.warp(block.timestamp + 2 days);
         currentBlock = block.number;
-        console.log("current block: ", currentBlock);
 
         // run propose()
-        uint256 proposalId = proposal.run();
+        proposal.buildProposalData();
+        bytes memory proposalData = proposal.getProposalData();
+        emit log_named_bytes("proposal data: ", proposalData);
+        (targets, values, signatures, calldatas, description) = abi.decode(proposalData, 
+            (address[], uint256[], string[], bytes[], string));
+
+        vm.startPrank(whale1);
+        uint256 proposalId = governor.propose(targets, values, signatures, calldatas, description);
+        console.log("got proposal Id:", proposalId);
+        vm.stopPrank();
+
 
         // proposal _review period is two days in the docs. But it only works with three days.
         vm.roll(currentBlock + 4 * 60 * 24 * 3 + 1);

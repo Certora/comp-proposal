@@ -40,17 +40,7 @@ contract Proposal {
     IGovernorBravo public governor = IGovernorBravo(Constants.GOVERNOR_BRAVO);
     PriceOracle oracle = PriceOracle(Constants.COMP_USD_ORACLE);
 
-    string public constant description = "A proposal for significantly and continuously"
-    "improving the security of the Compound platform and the dApps built on top of it, by offering" 
-    "our formal verification and path coverage tooling service to the Compound Platform contributors" 
-    "and the Compound Protocol dApp developers. This is a follow-up to our recent work on the Comet "
-    "protocol with the Compound labs team. The idea is to provide access to the community and educate" 
-    "the community, write formal specifications, and review code changes. This proposal is orthogonal "
-    "to the Open Zeppelin proposal, which has already been suggested using the Certora prover. "
-    "This proposal also suggests writing formal correctness rules for the Compound Protocol which"
-    " will be reviewed by the community and OpenZeppelin. We have already written some formal "
-    "requirements for Comet and prevented huge security breaches."
-    "This is an update of an earlier unsubmitted proposal 2 discussed in November 2021.";
+    string public constant description = "yo";
 
     constructor() {}
 
