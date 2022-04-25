@@ -4,10 +4,13 @@ Implementation of this [funding proposal](https://www.comp.xyz/t/certora-formal-
 
 It can run in two ways:
 
-1. Deploy the `Proposal` contract, then execute the `run()` function.
+1. Deploy the `Proposal` contract, then execute the `run()` function. The proposal contract must have a
+   a delegation of at least 25000 COMP voting power.
 
 2. Run the test `forge test -vvvv -m E2EProposeCall` and copy the `propose()` calldata from the logs.
    Use the calldata as in input for Compounds Governor Bravo contract's `propose()` function.
+   The wallet that runs the proposal must have a delegation of at least 25000 COMP voting power.
+
 
 ## Installation
 
