@@ -14,6 +14,9 @@ import "../interfaces/GovernorBravo.sol";
 // for token amount calculations
 uint256 constant ERROR_MARGIN = 10 ** 12;
 
+// number of actions in the proposal: two approves, two stream creates, one transfer
+uint8 constant ACTIONS = 5;
+
 contract ContractTest is Test {
     Proposal proposal;
 
@@ -32,23 +35,24 @@ contract ContractTest is Test {
         assertEq(targets[1], Constants.USDC_TOKEN);
         assertEq(targets[2], Constants.SABLIER);
         assertEq(targets[3], Constants.SABLIER);
+        assertEq(targets[4], Constants.COMP_TOKEN);
     }
 
     function _testValues() internal {
-        for(uint8 i = 0; i < 4; i++){
+        for(uint8 i = 0; i < ACTIONS; i++){
             assertEq(values[i], 0);
         }
     }
 
     function _testSignatures() internal {
         console.log("approve and createstream sigs: ", signatures[0], signatures[2]);
-        emit log_named_bytes("encoded approve", abi.encode(signatures[0]));
         assertEq(keccak256(abi.encode(signatures[0])), keccak256(abi.encode("approve(address,uint256)")));
         assertEq(keccak256(abi.encode(signatures[1])), keccak256(abi.encode("approve(address,uint256)")));
         assertEq(keccak256(abi.encode(signatures[2])), 
                 keccak256(abi.encode("createStream(address,uint256,address,uint256,uint256)")));
         assertEq(keccak256(abi.encode(signatures[3])), 
                 keccak256(abi.encode("createStream(address,uint256,address,uint256,uint256)")));
+        assertEq(keccak256(abi.encode(signatures[4])), keccak256(abi.encode("transfer(address,uint256)")));
     }
 
     function _testCalldatas() internal {
@@ -102,6 +106,12 @@ contract ContractTest is Test {
 
         // startTime must be after current time + 2 weeks
         assertGt(startTime, block.timestamp +  Constants.MAX_VOTING_PERIOD * 15 - 1, "usdc stream starts too soon");
+
+        // action 5
+        (recipient, amount) = abi.decode(calldatas[4], (address, uint256));
+        assertEq(recipient, Constants.MULTISIG_RECIPIENT, "target is not multisig recipient");
+        assertEq(amount, proposal.amountCompMultisig(), "amount of COMP to multisig is wrong");
+        console.log("transfering to multisig: ", amount);
     }
 
     function _testDescription() internal {
@@ -124,13 +134,11 @@ contract ContractTest is Test {
     }
     
 
-    function _testCompToUsdConversion(uint256 compAmount) internal {
+    function _testCompToUsdConversion(uint256 compAmount, uint256 expectedUsd) internal {
         PriceOracle oracle = PriceOracle(Constants.COMP_USD_ORACLE);
         (, int256 compPrice, , , ) = oracle.latestRoundData();
         uint256 givenCompValue = compAmount * uint256(compPrice) / 10 ** oracle.decimals();
-        console.log("given Comp Value is:", givenCompValue);
-        uint256 expectedUsdValue = Constants.COMP_VALUE * 10 ** (Constants.COMP_DECIMALS);
-        console.log("expected Usd value is:", expectedUsdValue);
+        uint256 expectedUsdValue = expectedUsd * 10 ** (Constants.COMP_DECIMALS);
         
         uint256 margin;
         if (expectedUsdValue > givenCompValue) {
@@ -139,7 +147,6 @@ contract ContractTest is Test {
             margin = givenCompValue - expectedUsdValue;
         }
 
-        console.log("testing compAmount:", compAmount);
         assertLt(margin, ERROR_MARGIN, "comp value is too far from expected");
     }
 
@@ -215,6 +222,7 @@ contract ContractTest is Test {
 
         _testCompStream(compStreamId);
         _testUsdcStream(usdcStreamId);
+        _testMultisigRecipient();
     }
 
     function testE2EProposeCall() public {
@@ -286,6 +294,7 @@ contract ContractTest is Test {
 
         _testCompStream(compStreamId);
         _testUsdcStream(usdcStreamId);
+        _testMultisigRecipient();
     }
 
     function _testCompStream(uint256 id) internal {
@@ -306,7 +315,15 @@ contract ContractTest is Test {
         assertEq(stopTime - startTime, 365 * 24 * 60 * 60, "wrong comp stream duration");
         // starts in the next 7 days
         assertLt(startTime - block.timestamp, 60 * 60 * 24 * 7, "wrong comp stream start time");
-        _testCompToUsdConversion(remainingBalance);
+        _testCompToUsdConversion(remainingBalance, Constants.COMP_VALUE);
+
+        // skip(365 + 1 days);
+        // vm.startPrank(Constants.CERTORA);
+        // ISablier(Constants.SABLIER).withdrawFromStream(id, remainingBalance);
+        // uint256 compBalance = IERC20(Constants.COMP_TOKEN).balanceOf(Constants.CERTORA);
+        // assertEq(remainingBalance, compBalance);
+        // vm.stopPrank();
+        // rewind(365 + 1 days);
     }
 
 
@@ -322,6 +339,8 @@ contract ContractTest is Test {
 
         (sender, recipient, deposit, token, startTime, stopTime, remainingBalance, ratePerSecond) = 
             ISablier(Constants.SABLIER).getStream(id);
+        console.log("usdc stream remaining balance: ", remainingBalance);
+        console.log("stream recipient: ", recipient);
         
         assertEq(recipient, Constants.CERTORA, "wrong usdc stream recipient");
         assertEq(token, Constants.USDC_TOKEN, "wrong  usdc  stream token");
@@ -331,6 +350,28 @@ contract ContractTest is Test {
         assertLt(expectedUsdc - remainingBalance, ERROR_MARGIN, "wrong usdc stream balance");
         // starts in the next 7 days
         assertLt(startTime - block.timestamp, 60 * 60 * 24 * 7, "wrong usdc stream start time");
+
+        // 1 year + 7 days start time buffer + 1 day
+        skip(373 days);
+        vm.startPrank(Constants.CERTORA);
+        uint256 streamBalance = ISablier(Constants.SABLIER).balanceOf(id, Constants.CERTORA);
+        console.log("balance after one year: ", streamBalance);
+        uint256 remainingBalanceAfter;
+        (,,,,,,remainingBalanceAfter,) =  ISablier(Constants.SABLIER).getStream(id);
+        console.log("remainingBalance after one year: ", remainingBalanceAfter);
+        uint256 usdcBalanceBefore = IERC20(Constants.USDC_TOKEN).balanceOf(Constants.CERTORA);
+        ISablier(Constants.SABLIER).withdrawFromStream(id, remainingBalance);
+        uint256 usdcBalanceAfter = IERC20(Constants.USDC_TOKEN).balanceOf(Constants.CERTORA);
+        assertEq(remainingBalance, usdcBalanceAfter - usdcBalanceBefore);
+        vm.stopPrank();
+        rewind(373 days);
+    }
+
+    function _testMultisigRecipient() internal {
+        uint256 compBalance = IERC20(Constants.COMP_TOKEN).balanceOf(Constants.MULTISIG_RECIPIENT);
+        console.log("multisig comp balance is: ", compBalance / 10 ** 18);
+        console.log("multisig balance in gwei is: ", compBalance);
+        _testCompToUsdConversion(compBalance, Constants.COMP_MULTISIG_VALUE);
     }
 
 }

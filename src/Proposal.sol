@@ -26,6 +26,7 @@ contract Proposal {
     }
 
     uint256 public amountComp;
+    uint256 public amountCompMultisig;
     uint256 public amountUsdc;
     uint256 public startTime;
     uint256 public endTime;
@@ -40,7 +41,7 @@ contract Proposal {
     IGovernorBravo public governor = IGovernorBravo(Constants.GOVERNOR_BRAVO);
     PriceOracle oracle = PriceOracle(Constants.COMP_USD_ORACLE);
 
-    string public constant description = "yo";
+    string public description = Constants.DESCRIPTION;
 
     constructor() {}
 
@@ -76,15 +77,22 @@ contract Proposal {
         return usdAmount * 10 ** Constants.USDC_DECIMALS;
     }
 
+    // this function is public so that it can be tested independently.
     function buildProposalData() public {
 
-        // MAX_VOTING_PERIOD is designated in blocks so we multiple by 15
+        delete data.targets;
+        delete data.values;
+        delete data.signatures;
+        delete data.calldatas;
+
+        // MAX_VOTING_PERIOD is designated in blocks so we multiply by 15
         startTime = block.timestamp + Constants.MAX_VOTING_PERIOD * 15;
         // 1 year from startTime
         endTime = startTime + 60 * 60 * 24 * 365;
         recipient = Constants.CERTORA;
 
         amountComp = convertUSDAmountToCOMP(Constants.COMP_VALUE);
+        amountCompMultisig = convertUSDAmountToCOMP(Constants.COMP_MULTISIG_VALUE);
         // make the amount divisible by duration
         amountComp -= amountComp % (endTime - startTime);
         amountUsdc = convertUSDAmountToUSDC(Constants.USDC_VALUE);
@@ -94,6 +102,7 @@ contract Proposal {
         _addApproveUsdcAction();
         _addCreateCompStreamAction();
         _addCreateUsdcStreamAction();
+        _addTransferCompToMultisigAction();
         data.description = description;
     }
 
@@ -126,6 +135,13 @@ contract Proposal {
         data.values.push(0);
         data.signatures.push("createStream(address,uint256,address,uint256,uint256)");       
         data.calldatas.push(abi.encode(recipient, amountUsdc, Constants.USDC_TOKEN, startTime, endTime));
+    }
+
+    function _addTransferCompToMultisigAction() internal {
+        data.targets.push(Constants.COMP_TOKEN);
+        data.values.push(0);
+        data.signatures.push("transfer(address,uint256)");
+        data.calldatas.push(abi.encode(Constants.MULTISIG_RECIPIENT, amountCompMultisig));
     }
 
 }

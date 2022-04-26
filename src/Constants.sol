@@ -15,18 +15,29 @@ library Constants {
     "requirements for Comet and prevented huge security breaches."
     "This is an update of an earlier unsubmitted proposal 2 discussed in November 2021.";
 
+    // https://compound.finance/docs#networks
     address internal constant COMP_TOKEN = 0xc00e94Cb662C3520282E6f5717214004A7f26888;
     address internal constant GOVERNOR_BRAVO = 0xc0Da02939E1441F497fd74F78cE7Decb17B66529;
     address internal constant TIMELOCK = 0x6d903f6003cca6255D85CcA4D3B5E5146dC33925;
 
+    // https://etherscan.io/token/0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48
     address internal constant USDC_TOKEN = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
+
+    // https://docs.sablier.finance/#networks
     address internal constant SABLIER = 0xCD18eAa163733Da39c232722cBC4E8940b1D8888;
 
     address internal constant CERTORA = 0x0F11640BF66e2D9352d9c41434A5C6E597c5e4c8;
 
+    // random placeholder - a multisig will be setup  in collaboration with Compound
+    // TODO: MUST CHANGE TO REAL ADDRESS
+    address internal constant MULTISIG_RECIPIENT = 0xE2d46437c1a2C7603A6409488CA50008eC4f22ac;
+
     // $1M allocation of COMP
     uint256 internal constant COMP_VALUE = 1000000;
     uint256 internal constant USDC_VALUE = 1000000;
+
+    // $400K allocation of COMP to the multisig
+    uint256 internal constant COMP_MULTISIG_VALUE = 400000;
 
     uint256 internal constant COMP_DECIMALS = 18;
     uint256 internal constant USDC_DECIMALS = 6;
