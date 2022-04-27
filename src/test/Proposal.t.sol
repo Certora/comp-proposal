@@ -45,7 +45,6 @@ contract ContractTest is Test {
     }
 
     function _testSignatures() internal {
-        console.log("approve and createstream sigs: ", signatures[0], signatures[2]);
         assertEq(keccak256(abi.encode(signatures[0])), keccak256(abi.encode("approve(address,uint256)")));
         assertEq(keccak256(abi.encode(signatures[1])), keccak256(abi.encode("approve(address,uint256)")));
         assertEq(keccak256(abi.encode(signatures[2])), 
@@ -317,13 +316,17 @@ contract ContractTest is Test {
         assertLt(startTime - block.timestamp, 60 * 60 * 24 * 7, "wrong comp stream start time");
         _testCompToUsdConversion(remainingBalance, Constants.COMP_VALUE);
 
-        // skip(365 + 1 days);
-        // vm.startPrank(Constants.CERTORA);
-        // ISablier(Constants.SABLIER).withdrawFromStream(id, remainingBalance);
-        // uint256 compBalance = IERC20(Constants.COMP_TOKEN).balanceOf(Constants.CERTORA);
-        // assertEq(remainingBalance, compBalance);
-        // vm.stopPrank();
-        // rewind(365 + 1 days);
+        // 1 year + 7 days start time buffer + 1 day
+        skip(373 days);
+
+        // withdraw the whole balance from the stream once it's vested
+        vm.startPrank(Constants.CERTORA);
+        uint256 compBalanceBefore = IERC20(Constants.COMP_TOKEN).balanceOf(Constants.CERTORA);
+        ISablier(Constants.SABLIER).withdrawFromStream(id, remainingBalance);
+        uint256 compBalanceAfter = IERC20(Constants.COMP_TOKEN).balanceOf(Constants.CERTORA);
+        assertEq(remainingBalance, compBalanceAfter - compBalanceBefore, "didn't withdraw the balance from stream");
+        vm.stopPrank();
+        rewind(373 days);
     }
 
 
@@ -353,16 +356,13 @@ contract ContractTest is Test {
 
         // 1 year + 7 days start time buffer + 1 day
         skip(373 days);
+
+        // withdraw the whole balance from the stream once it's vested
         vm.startPrank(Constants.CERTORA);
-        uint256 streamBalance = ISablier(Constants.SABLIER).balanceOf(id, Constants.CERTORA);
-        console.log("balance after one year: ", streamBalance);
-        uint256 remainingBalanceAfter;
-        (,,,,,,remainingBalanceAfter,) =  ISablier(Constants.SABLIER).getStream(id);
-        console.log("remainingBalance after one year: ", remainingBalanceAfter);
         uint256 usdcBalanceBefore = IERC20(Constants.USDC_TOKEN).balanceOf(Constants.CERTORA);
         ISablier(Constants.SABLIER).withdrawFromStream(id, remainingBalance);
         uint256 usdcBalanceAfter = IERC20(Constants.USDC_TOKEN).balanceOf(Constants.CERTORA);
-        assertEq(remainingBalance, usdcBalanceAfter - usdcBalanceBefore);
+        assertEq(remainingBalance, usdcBalanceAfter - usdcBalanceBefore, "didn't withdraw the balance from stream");
         vm.stopPrank();
         rewind(373 days);
     }

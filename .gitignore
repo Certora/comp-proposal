@@ -1,3 +1,6 @@
 cache/
 out/
 temp/
+.certora_config/
+.certora_*
+resource_errors.json

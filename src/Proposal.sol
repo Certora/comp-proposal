@@ -93,10 +93,18 @@ contract Proposal {
 
         amountComp = convertUSDAmountToCOMP(Constants.COMP_VALUE);
         amountCompMultisig = convertUSDAmountToCOMP(Constants.COMP_MULTISIG_VALUE);
+        
         // make the amount divisible by duration
-        amountComp -= amountComp % (endTime - startTime);
+        uint256 duration = endTime - startTime;
+        uint256 amountCompNorm1 = amountComp - amountComp % duration;
+        uint256 amountCompNorm2 = amountComp / duration * duration;
+        require(amountCompNorm1 == amountCompNorm2, "normalization methods not equivalent - comp");
+        amountComp = amountCompNorm2;
         amountUsdc = convertUSDAmountToUSDC(Constants.USDC_VALUE);
-        amountUsdc -= amountUsdc % (endTime - startTime);
+        uint256 amountUsdcNorm1 = amountUsdc -  amountUsdc % duration;
+        uint256 amountUsdcNorm2 = amountUsdc / duration * duration;
+        require(amountUsdcNorm1 == amountUsdcNorm2, "normalization methods not equivalent - usdc");
+        amountUsdc = amountUsdcNorm2;
 
         _addApproveCompAction();
         _addApproveUsdcAction();
