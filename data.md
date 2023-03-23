@@ -1,3 +1,12 @@
+## Proposal Actions
+
+We are going to use the [Compound UI](https://www.comp.xyz/t/governance-guide-how-to-propose/367) for adding actions to the proposal.
+The actions are identical to this [Gauntlet proposal](https://compound.finance/governance/proposals/125), but with different parameters:
+
+COMP.approve("0xCD18eAa163733Da39c232722cBC4E8940b1D8888", 16722407999999999750400)
+
+0xCD18eAa163733Da39c232722cBC4E8940b1D8888.createStream("0x0F11640BF66e2D9352d9c41434A5C6E597c5e4c8", 16722407999999999750400, "COMP", 1680673189, 1696484389)
+
 ## Parameter calculations
 
 Recipient - Certora:
@@ -12,18 +21,16 @@ COMP Token address:
 0xc00e94Cb662C3520282E6f5717214004A7f26888
 
 Start stream
-1649137189 (April 5 - 10 days after proposal posting, 3 day buffer)
+1680673189 (April 5 - 10 days after proposal posting, 3 day buffer)
 
 End stream (6 months)
-1664948389 (October 5)
+1696484389 (October 5)
 
 delta (stream duration): 15811200
 
 Adjusted number of tokens so it divides without remainder by delta:
 16722407999999999750400
 
-## Final parameters
+## Simulation
 
-COMP.approve("0xCD18eAa163733Da39c232722cBC4E8940b1D8888", 16722407999999999750400)
-
-0xCD18eAa163733Da39c232722cBC4E8940b1D8888.createStream("0x0F11640BF66e2D9352d9c41434A5C6E597c5e4c8", 16722407999999999750400, "COMP", 1649137189, 1664948389)
+![Screenshot of a Tenderly simulation](https://i.imgur.com/usDTgTA.png)
